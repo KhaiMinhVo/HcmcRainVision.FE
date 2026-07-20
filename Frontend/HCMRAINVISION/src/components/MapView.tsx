@@ -5,7 +5,7 @@
  * already initialized" when React Strict Mode or routing causes remount.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { heatLayer } from '@linkurious/leaflet-heat';
@@ -55,8 +55,8 @@ function addMarkers(
   cameras: CameraInfo[],
   selectedCameraId: string | null,
   onCameraClick: (cameraId: string) => void
-): Map<string, L.CircleMarker> {
-  const markers = new Map<string, L.CircleMarker>();
+): L.LayerGroup {
+  const layerGroup = L.layerGroup();
   const rainDataMap = new Map<string, RainDataPoint>();
   rainData.forEach((p) => rainDataMap.set(p.id, p));
 
@@ -67,7 +67,8 @@ function addMarkers(
     const color = MARKER_COLORS[rainLevel];
     const radius = MARKER_RADIUS[rainLevel];
 
-    const marker = L.circleMarker([camera.lat, camera.lng], {
+    // Add circle marker for all cameras
+    const circle = L.circleMarker([camera.lat, camera.lng], {
       radius,
       fillColor: color,
       color: isSelected ? MARKER_COLORS.SELECTED : color,
@@ -77,9 +78,17 @@ function addMarkers(
       className: 'cursor-pointer transition-all',
     });
 
-    marker.on('click', () => {
-      onCameraClick(camera.id);
-    });
+    circle.on('click', () => onCameraClick(camera.id));
+
+    // If selected, add a prominent standard PIN marker
+    if (isSelected) {
+      const pin = L.marker([camera.lat, camera.lng], {
+        zIndexOffset: 1000,
+        title: camera.name
+      });
+      pin.on('click', () => onCameraClick(camera.id));
+      pin.addTo(layerGroup);
+    }
 
     const rainStatusClass =
       rainLevel === RAIN_LEVEL_CONFIG.NO_RAIN
@@ -114,23 +123,20 @@ function addMarkers(
     }
 
     const popup = L.popup({ className: 'custom-popup', maxWidth: 250 }).setContent(popupContent);
-    marker.bindPopup(popup);
+    circle.bindPopup(popup);
 
-    marker.on('mouseover', () => {
-      marker.setStyle({ weight: 4, fillOpacity: 0.9 });
-      marker.openPopup();
+    circle.on('mouseover', () => {
+      circle.setStyle({ weight: 4, fillOpacity: 0.9 });
+      circle.openPopup();
     });
-    marker.on('mouseout', () => {
-      if (selectedCameraId !== camera.id) {
-        marker.setStyle({ weight: 2, fillOpacity: 0.7 });
-      }
+    circle.on('mouseout', () => {
+      if (!isSelected) circle.setStyle({ weight: 2, fillOpacity: 0.7 });
     });
 
-    marker.addTo(map);
-    markers.set(camera.id, marker);
+    circle.addTo(layerGroup);
   });
 
-  return markers;
+  return layerGroup;
 }
 
 export default function MapView({
@@ -145,16 +151,19 @@ export default function MapView({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const heatLayerRef = useRef<L.Layer | null>(null);
+  const camerasRef = useRef(cameras);
+  
+  // Keep latest cameras in ref so we don't trigger panning when cameras update
+  useEffect(() => {
+    camerasRef.current = cameras;
+  }, [cameras]);
 
-  // Create map once on mount; cleanup on unmount
+  // Create map once on mount
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Guard: Leaflet leaves _leaflet_id on the container; if it exists, container was already used
-    if ((container as unknown as { _leaflet_id?: number })._leaflet_id != null) {
-      return;
-    }
+    if ((container as unknown as { _leaflet_id?: number })._leaflet_id != null) return;
 
     const map = L.map(container, {
       center: [HCMC_CENTER.lat, HCMC_CENTER.lng],
@@ -174,9 +183,7 @@ export default function MapView({
     };
   }, []);
 
-  // ResizeObserver: call invalidateSize() whenever the map container resizes.
-  // This fixes the classic Leaflet bug where tiles are misaligned after the
-  // container changes dimensions (sidebar collapse, detail panel open, etc.)
+  // ResizeObserver: fix Leaflet tile misalignment when container size changes
   useEffect(() => {
     const map = mapRef.current;
     const container = containerRef.current;
@@ -190,37 +197,35 @@ export default function MapView({
     return () => ro.disconnect();
   }, []);
 
-  // Pan to selected camera
+  // Pan to selected camera (ONLY when selectedCameraId or panTrigger changes)
+  // We use camerasRef.current so we don't snap back when rainData/cameras fetch completes
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !selectedCameraId) return;
 
-    const selected = cameras.find((c) => c.id === selectedCameraId);
+    const selected = camerasRef.current.find((c) => c.id === selectedCameraId);
     if (!selected) return;
 
-    // Force Leaflet to recalculate container dimensions before panning
     map.invalidateSize({ animate: false });
 
     const targetZoom = Math.max(map.getZoom(), MAP_CONFIG.MIN_ZOOM_ON_SELECT);
-    // Pan directly to camera coordinates — no offset tricks
     map.setView([selected.lat, selected.lng], targetZoom, { animate: true });
-  }, [selectedCameraId, cameras, panTrigger]);
+  }, [selectedCameraId, panTrigger]);
 
-  // Update markers when data or selection changes
+  // Update markers (pins and circles)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    const markersRef = new Map<string, L.CircleMarker>();
-    const markers = addMarkers(map, rainData, cameras, selectedCameraId, onCameraClick);
-    markers.forEach((m, id) => markersRef.set(id, m));
+    const markersLayer = addMarkers(map, rainData, cameras, selectedCameraId, onCameraClick);
+    markersLayer.addTo(map);
 
     return () => {
-      markersRef.forEach((marker) => map.removeLayer(marker));
+      map.removeLayer(markersLayer);
     };
   }, [rainData, cameras, selectedCameraId, onCameraClick]);
 
-  // Heatmap layer: add/remove when showHeatmap or heatmapPoints change
+  // Heatmap layer
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -248,29 +253,9 @@ export default function MapView({
     };
   }, [showHeatmap, heatmapPoints]);
 
-  const [debugInfo, setDebugInfo] = useState('');
-
-  // Debug info updater — shows center, zoom, container size for diagnosis
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const updateDebug = () => {
-      const c = map.getCenter();
-      const s = map.getSize();
-      setDebugInfo(`Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} | Zoom: ${map.getZoom()} | Size: ${s.x}x${s.y} | Sel: ${selectedCameraId} | Cams: ${cameras.length}`);
-    };
-    map.on('moveend', updateDebug);
-    map.on('resize', updateDebug);
-    updateDebug();
-    return () => { map.off('moveend', updateDebug); map.off('resize', updateDebug); };
-  }, [selectedCameraId, cameras.length]);
-
   return (
-    <div className="w-full h-full relative z-0" style={{ minHeight: 300 }}>
+    <div className="w-full h-full relative z-0 bg-gray-100" style={{ minHeight: 300 }}>
       <div ref={containerRef} className="absolute inset-0" />
-      <div className="absolute top-2 left-2 z-[9999] bg-white/90 backdrop-blur p-2 text-xs font-mono border border-gray-400 shadow-lg max-w-[50%] break-all">
-        {debugInfo}
-      </div>
     </div>
   );
 }
