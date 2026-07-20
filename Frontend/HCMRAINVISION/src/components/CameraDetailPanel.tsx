@@ -159,8 +159,13 @@ export default function CameraDetailPanel({
     return rainData.timestamp;
   })();
   const displayName = effectiveCamera?.name ?? detail?.Name ?? 'Camera';
-  /** Link ảnh camera trực tiếp từ API (StreamUrl) – không cần backend proxy */
-  const imageUrl = detail?.StreamUrl ?? camera?.streamUrl ?? undefined;
+  /** Link ảnh camera trực tiếp từ API (StreamUrl).
+   *  Khi FE chạy trên HTTPS (GitHub Pages), browser chặn mixed content (HTTP image).
+   *  Tự động đổi http:// → https:// để tránh bị block. */
+  const rawImageUrl = detail?.StreamUrl ?? camera?.streamUrl ?? undefined;
+  const imageUrl = rawImageUrl && window.location.protocol === 'https:'
+    ? rawImageUrl.replace(/^http:\/\//i, 'https://')
+    : rawImageUrl;
   const showImage = !!imageUrl && !imageError;
 
   return (
