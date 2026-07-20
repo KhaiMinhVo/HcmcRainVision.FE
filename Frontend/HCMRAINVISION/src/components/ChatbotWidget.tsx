@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { sendChatMessage, type ChatbotMessage } from '../services/chatbotApi';
+import { useChatbot } from '../contexts/ChatbotContext';
 
 const WELCOME_MESSAGE: ChatbotMessage = {
   role: 'bot',
@@ -15,7 +16,7 @@ const SUGGESTIONS = [
 ];
 
 export default function ChatbotWidget() {
-  const [isOpen, setIsOpen] = useState(false);
+  const { isChatbotOpen: isOpen, toggleChatbot } = useChatbot();
   const [messages, setMessages] = useState<ChatbotMessage[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -71,7 +72,7 @@ export default function ChatbotWidget() {
     <>
       {/* Floating button */}
       <button
-        onClick={() => setIsOpen((o) => !o)}
+        onClick={toggleChatbot}
         className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/35 transition-all duration-200 hover:from-sky-600 hover:to-blue-700 hover:shadow-xl active:scale-95"
         aria-label="Mở chatbot thời tiết"
         title="Hỏi về thời tiết"

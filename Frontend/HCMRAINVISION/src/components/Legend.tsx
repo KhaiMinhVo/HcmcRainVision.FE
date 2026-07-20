@@ -1,11 +1,26 @@
+import { useChatbot } from '../contexts/ChatbotContext';
+
 interface LegendProps {
   showHeatmap?: boolean;
   onToggleHeatmap?: (show: boolean) => void;
 }
 
 export default function Legend({ showHeatmap = false, onToggleHeatmap }: LegendProps) {
+  let isChatbotOpen = false;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const ctx = useChatbot();
+    isChatbotOpen = ctx.isChatbotOpen;
+  } catch {
+    // Legend used outside ChatbotProvider (e.g. AdminDashboard) – default to closed
+  }
+
   return (
-    <div className="fixed top-[76px] lg:top-[136px] right-4 bg-white rounded-xl shadow-lg p-5 z-[400] border border-gray-200 w-80">
+    <div
+      className={`fixed top-[120px] lg:top-[160px] bg-white rounded-xl shadow-lg p-5 z-[400] border border-gray-200 w-80 transition-all duration-300 ${
+        isChatbotOpen ? 'right-[calc(24rem+1.5rem+0.5rem)] sm:right-[calc(24rem+1.5rem+0.5rem)]' : 'right-4'
+      }`}
+    >
       <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
         <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />

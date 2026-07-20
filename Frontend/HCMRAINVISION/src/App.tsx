@@ -23,6 +23,7 @@ import ResetPassword from './pages/ResetPassword';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import ChatbotWidget from './components/ChatbotWidget';
+import { ChatbotProvider } from './contexts/ChatbotContext';
 
 /** Base path for router (phải khớp với Vite base để route đúng khi deploy GitHub Pages). */
 const routerBasename = import.meta.env.BASE_URL === '/' ? '' : import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -30,6 +31,7 @@ const routerBasename = import.meta.env.BASE_URL === '/' ? '' : import.meta.env.B
 function App() {
   return (
     <BrowserRouter basename={routerBasename}>
+      <ChatbotProvider>
       <AuthProvider>
         <FavoritesProvider>
           <NotificationsProvider>
@@ -61,6 +63,7 @@ function App() {
           </NotificationsProvider>
         </FavoritesProvider>
       </AuthProvider>
+      </ChatbotProvider>
       <Toaster
         position="top-center"
         gutter={12}
