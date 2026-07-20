@@ -5,7 +5,7 @@
  * already initialized" when React Strict Mode or routing causes remount.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { heatLayer } from '@linkurious/leaflet-heat';
@@ -20,6 +20,7 @@ interface MapViewProps {
   onCameraClick: (cameraId: string) => void;
   heatmapPoints?: HeatmapPoint[];
   showHeatmap?: boolean;
+  panTrigger?: number;
 }
 
 /**
@@ -148,6 +149,7 @@ export default function MapView({
   onCameraClick,
   heatmapPoints = [],
   showHeatmap = false,
+  panTrigger = 0,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -203,7 +205,7 @@ export default function MapView({
       const targetLatLng = map.unproject(targetPoint, targetZoom);
       map.setView(targetLatLng, targetZoom, { animate: true });
     }
-  }, [selectedCameraId, cameras]);
+  }, [selectedCameraId, cameras, panTrigger]);
 
   // Update markers when data or selection changes
   useEffect(() => {
@@ -247,11 +249,26 @@ export default function MapView({
     };
   }, [showHeatmap, heatmapPoints]);
 
+  const [debugInfo, setDebugInfo] = useState('');
+
+  // Debug info updater
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const updateDebug = () => {
+      setDebugInfo(`Center: ${map.getCenter().lat.toFixed(4)}, ${map.getCenter().lng.toFixed(4)} | Zoom: ${map.getZoom()} | Sel: ${selectedCameraId} | Cams: ${cameras.length}`);
+    };
+    map.on('moveend', updateDebug);
+    updateDebug();
+    return () => { map.off('moveend', updateDebug); };
+  }, [selectedCameraId, cameras.length]);
+
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full relative z-0"
-      style={{ minHeight: 300 }}
-    />
+    <div className="w-full h-full relative z-0" style={{ minHeight: 300 }}>
+      <div ref={containerRef} className="w-full h-full" />
+      <div className="absolute top-2 right-2 z-[9999] bg-white p-2 text-xs font-mono border border-black shadow-lg">
+        {debugInfo}
+      </div>
+    </div>
   );
 }

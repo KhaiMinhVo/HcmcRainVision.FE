@@ -71,9 +71,12 @@ export default function Home() {
 
   const { isAuthenticated } = useAuth();
 
+  const [panTrigger, setPanTrigger] = useState(0);
+
   const handleCameraSelect = (cameraId: string) => {
     setSelectedCameraId(cameraId);
     setIsDetailPanelOpen(true);
+    setPanTrigger(prev => prev + 1);
   };
 
   const handleCloseDetailPanel = () => {
@@ -140,6 +143,7 @@ export default function Home() {
               onCameraClick={handleCameraSelect}
               heatmapPoints={heatmapPoints}
               showHeatmap={showHeatmap}
+              panTrigger={panTrigger}
             />
             <Legend showHeatmap={showHeatmap} onToggleHeatmap={setShowHeatmap} />
           </div>
