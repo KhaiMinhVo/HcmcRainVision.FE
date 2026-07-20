@@ -8,6 +8,8 @@ let inMemoryToken: string | null = null;
 export function getToken(): string | null {
   if (inMemoryToken) return inMemoryToken;
   try {
+    const sessionToken = sessionStorage.getItem(STORAGE_KEYS.TOKEN);
+    if (sessionToken) return sessionToken;
     return localStorage.getItem(STORAGE_KEYS.TOKEN);
   } catch {
     return null;
@@ -16,18 +18,16 @@ export function getToken(): string | null {
 
 export function setToken(token: string, persist: boolean): void {
   inMemoryToken = token;
-  if (persist) {
-    try {
+  try {
+    if (persist) {
       localStorage.setItem(STORAGE_KEYS.TOKEN, token);
-    } catch {
-      /* ignore */
-    }
-  } else {
-    try {
+      sessionStorage.removeItem(STORAGE_KEYS.TOKEN);
+    } else {
+      sessionStorage.setItem(STORAGE_KEYS.TOKEN, token);
       localStorage.removeItem(STORAGE_KEYS.TOKEN);
-    } catch {
-      /* ignore */
     }
+  } catch {
+    /* ignore */
   }
 }
 
@@ -35,6 +35,7 @@ export function clearToken(): void {
   inMemoryToken = null;
   try {
     localStorage.removeItem(STORAGE_KEYS.TOKEN);
+    sessionStorage.removeItem(STORAGE_KEYS.TOKEN);
   } catch {
     /* ignore */
   }
