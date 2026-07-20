@@ -8,6 +8,7 @@ import type { CameraInfo, RainDataPoint } from '../types';
 import { RAIN_LEVEL_CONFIG } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { useFavorites } from '../contexts/FavoritesContext';
+import { apiBaseURL } from '../services/apiClient';
 import { reportIncorrectPrediction } from '../services/weatherApi';
 import { validate } from '../lib/validation';
 import WardDetailModal from './WardDetailModal';
@@ -128,13 +129,10 @@ export default function CameraDetailPanel({
     return rainData.timestamp;
   })();
   const displayName = effectiveCamera?.name ?? 'Camera';
-  /** Link ảnh camera trực tiếp từ API (StreamUrl).
-   *  Khi FE chạy trên HTTPS (GitHub Pages), browser chặn mixed content (HTTP image).
-   *  Tự động đổi http:// → https:// để tránh bị block. */
-  const rawImageUrl = camera?.streamUrl ?? undefined;
-  const imageUrl = rawImageUrl && window.location.protocol === 'https:'
-    ? rawImageUrl.replace(/^http:\/\//i, 'https://')
-    : rawImageUrl;
+  /** Link ảnh camera thông qua backend proxy để tránh mixed content (HTTP -> HTTPS) 
+   *  và tránh lỗi CORS khi truy cập trực tiếp. */
+  const base = apiBaseURL.replace(/\/$/, '');
+  const imageUrl = effectiveCamera?.id ? `${base}/api/Camera/${effectiveCamera.id}/image` : undefined;
   const showImage = !!imageUrl && !imageError;
 
   return (
