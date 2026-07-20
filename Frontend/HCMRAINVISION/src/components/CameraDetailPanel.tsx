@@ -145,7 +145,7 @@ export default function CameraDetailPanel({
 
       {/* Panel */}
       <div
-        className={`fixed bottom-0 left-0 right-0 lg:right-auto lg:left-auto lg:top-0 lg:bottom-0 lg:w-96 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out ${
+        className={`fixed bottom-0 left-0 right-0 lg:right-0 lg:left-auto lg:top-0 lg:bottom-0 lg:w-96 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out ${
           isOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0 lg:translate-x-full'
         }`}
       >

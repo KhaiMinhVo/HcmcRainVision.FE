@@ -136,16 +136,7 @@ function addMarkers(
     markers.set(camera.id, marker);
   });
 
-  if (selectedCameraId) {
-    const selected = cameraMap.get(selectedCameraId);
-    if (selected) {
-      map.setView(
-        [selected.lat, selected.lng],
-        Math.max(map.getZoom(), MAP_CONFIG.MIN_ZOOM_ON_SELECT),
-        { animate: true }
-      );
-    }
-  }
+
 
   return markers;
 }
@@ -189,6 +180,31 @@ export default function MapView({
       mapRef.current = null;
     };
   }, []);
+
+  // Pan to selected camera with offset to account for Detail Panel
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !selectedCameraId) return;
+
+    const selected = cameras.find((c) => c.id === selectedCameraId);
+    if (selected) {
+      const targetZoom = Math.max(map.getZoom(), MAP_CONFIG.MIN_ZOOM_ON_SELECT);
+      let targetPoint = map.project([selected.lat, selected.lng], targetZoom);
+      
+      if (window.innerWidth >= 1024) {
+        // Desktop: Detail panel is on the right, width 384px (w-96)
+        // Shift map center to the right by half the panel width so marker appears centered in remaining space
+        targetPoint = targetPoint.add([192, 0]);
+      } else {
+        // Mobile: Detail panel is on the bottom, varies in height (approx 300-400px)
+        // Shift map center down so marker appears higher up
+        targetPoint = targetPoint.add([0, 150]);
+      }
+      
+      const targetLatLng = map.unproject(targetPoint, targetZoom);
+      map.setView(targetLatLng, targetZoom, { animate: true });
+    }
+  }, [selectedCameraId, cameras]);
 
   // Update markers when data or selection changes
   useEffect(() => {
