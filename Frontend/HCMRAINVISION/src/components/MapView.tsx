@@ -192,9 +192,8 @@ export default function MapView({
       let targetPoint = map.project([selected.lat, selected.lng], targetZoom);
       
       if (window.innerWidth >= 1024) {
-        // Desktop: Detail panel is on the left, width 384px (w-96)
-        // Shift map center to the left by half the panel width so marker appears centered in remaining space on the right
-        targetPoint = targetPoint.add([-192, 0]);
+        // Desktop: Detail panel is on the left, covering the sidebar.
+        // Map container is next to it, so no horizontal offset is needed.
       } else {
         // Mobile: Detail panel is on the bottom, varies in height (approx 300-400px)
         // Shift map center down so marker appears higher up

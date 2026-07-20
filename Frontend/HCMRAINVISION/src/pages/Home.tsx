@@ -78,6 +78,8 @@ export default function Home() {
 
   const handleCloseDetailPanel = () => {
     setIsDetailPanelOpen(false);
+    // Clear selection so clicking the same camera again triggers a pan
+    setSelectedCameraId(null);
   };
 
   if (loading && cameras.length === 0) {
