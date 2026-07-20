@@ -59,8 +59,6 @@ function addMarkers(
   const markers = new Map<string, L.CircleMarker>();
   const rainDataMap = new Map<string, RainDataPoint>();
   rainData.forEach((p) => rainDataMap.set(p.id, p));
-  const cameraMap = new Map<string, CameraInfo>();
-  cameras.forEach((c) => cameraMap.set(c.id, c));
 
   cameras.forEach((camera) => {
     const rainPoint = rainDataMap.get(camera.id);
@@ -81,11 +79,6 @@ function addMarkers(
 
     marker.on('click', () => {
       onCameraClick(camera.id);
-      map.setView(
-        [camera.lat, camera.lng],
-        Math.max(map.getZoom(), MAP_CONFIG.MIN_ZOOM_ON_SELECT),
-        { animate: true }
-      );
     });
 
     const rainStatusClass =
@@ -137,8 +130,6 @@ function addMarkers(
     markers.set(camera.id, marker);
   });
 
-
-
   return markers;
 }
 
@@ -183,28 +174,36 @@ export default function MapView({
     };
   }, []);
 
-  // Pan to selected camera with offset to account for Detail Panel
+  // ResizeObserver: call invalidateSize() whenever the map container resizes.
+  // This fixes the classic Leaflet bug where tiles are misaligned after the
+  // container changes dimensions (sidebar collapse, detail panel open, etc.)
+  useEffect(() => {
+    const map = mapRef.current;
+    const container = containerRef.current;
+    if (!map || !container) return;
+
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false });
+    });
+    ro.observe(container);
+
+    return () => ro.disconnect();
+  }, []);
+
+  // Pan to selected camera
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !selectedCameraId) return;
 
     const selected = cameras.find((c) => c.id === selectedCameraId);
-    if (selected) {
-      const targetZoom = Math.max(map.getZoom(), MAP_CONFIG.MIN_ZOOM_ON_SELECT);
-      let targetPoint = map.project([selected.lat, selected.lng], targetZoom);
-      
-      if (window.innerWidth >= 1024) {
-        // Desktop: Detail panel is on the left, covering the sidebar.
-        // Map container is next to it, so no horizontal offset is needed.
-      } else {
-        // Mobile: Detail panel is on the bottom, varies in height (approx 300-400px)
-        // Shift map center down so marker appears higher up
-        targetPoint = targetPoint.add([0, 150]);
-      }
-      
-      const targetLatLng = map.unproject(targetPoint, targetZoom);
-      map.setView(targetLatLng, targetZoom, { animate: true });
-    }
+    if (!selected) return;
+
+    // Force Leaflet to recalculate container dimensions before panning
+    map.invalidateSize({ animate: false });
+
+    const targetZoom = Math.max(map.getZoom(), MAP_CONFIG.MIN_ZOOM_ON_SELECT);
+    // Pan directly to camera coordinates — no offset tricks
+    map.setView([selected.lat, selected.lng], targetZoom, { animate: true });
   }, [selectedCameraId, cameras, panTrigger]);
 
   // Update markers when data or selection changes
@@ -251,22 +250,25 @@ export default function MapView({
 
   const [debugInfo, setDebugInfo] = useState('');
 
-  // Debug info updater
+  // Debug info updater — shows center, zoom, container size for diagnosis
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     const updateDebug = () => {
-      setDebugInfo(`Center: ${map.getCenter().lat.toFixed(4)}, ${map.getCenter().lng.toFixed(4)} | Zoom: ${map.getZoom()} | Sel: ${selectedCameraId} | Cams: ${cameras.length}`);
+      const c = map.getCenter();
+      const s = map.getSize();
+      setDebugInfo(`Center: ${c.lat.toFixed(4)}, ${c.lng.toFixed(4)} | Zoom: ${map.getZoom()} | Size: ${s.x}x${s.y} | Sel: ${selectedCameraId} | Cams: ${cameras.length}`);
     };
     map.on('moveend', updateDebug);
+    map.on('resize', updateDebug);
     updateDebug();
-    return () => { map.off('moveend', updateDebug); };
+    return () => { map.off('moveend', updateDebug); map.off('resize', updateDebug); };
   }, [selectedCameraId, cameras.length]);
 
   return (
     <div className="w-full h-full relative z-0" style={{ minHeight: 300 }}>
-      <div ref={containerRef} className="w-full h-full" />
-      <div className="absolute top-2 right-2 z-[9999] bg-white p-2 text-xs font-mono border border-black shadow-lg">
+      <div ref={containerRef} className="absolute inset-0" />
+      <div className="absolute top-2 left-2 z-[9999] bg-white/90 backdrop-blur p-2 text-xs font-mono border border-gray-400 shadow-lg max-w-[50%] break-all">
         {debugInfo}
       </div>
     </div>
