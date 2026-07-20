@@ -134,8 +134,8 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col relative">
-          <div className="flex-1 relative">
+        <div className="flex-1 flex flex-col relative min-h-0">
+          <div className="flex-1 relative min-h-0 overflow-hidden">
             <MapView
               rainData={currentRainData}
               cameras={filteredCameras}
