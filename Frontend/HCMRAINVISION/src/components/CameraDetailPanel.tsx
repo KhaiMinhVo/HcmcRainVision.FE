@@ -5,11 +5,9 @@
 
 import { useEffect, useState } from 'react';
 import type { CameraInfo, RainDataPoint } from '../types';
-import type { CameraDto } from '../types/api';
 import { RAIN_LEVEL_CONFIG } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { useFavorites } from '../contexts/FavoritesContext';
-import { getCameraById } from '../services/cameraApi';
 import { reportIncorrectPrediction } from '../services/weatherApi';
 import { validate } from '../lib/validation';
 import WardDetailModal from './WardDetailModal';
@@ -60,6 +58,12 @@ export default function CameraDetailPanel({
   isOpen,
   onClose,
 }: CameraDetailPanelProps) {
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [cameraId]);
+
   // Prevent body scroll when panel is open
   useEffect(() => {
     if (isOpen) {
@@ -71,41 +75,6 @@ export default function CameraDetailPanel({
       document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
-
-  const [detail, setDetail] = useState<CameraDto | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
-  const [imageError, setImageError] = useState(false);
-
-  // Fetch camera detail (StreamUrl, etc.) when panel opens with a camera id
-  useEffect(() => {
-    if (!isOpen || !cameraId) {
-      setDetail(null);
-      setDetailError(null);
-      setImageError(false);
-      return;
-    }
-    let cancelled = false;
-    setDetailLoading(true);
-    setDetailError(null);
-    setImageError(false);
-    getCameraById(cameraId)
-      .then((data) => {
-        if (!cancelled) {
-          setDetail(data ?? null);
-          if (data == null) setDetailError('Không tìm thấy camera.');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setDetailError('Không tải được thông tin camera.');
-      })
-      .finally(() => {
-        if (!cancelled) setDetailLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, cameraId]);
 
   const { isAuthenticated } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -144,7 +113,7 @@ export default function CameraDetailPanel({
 
   if (!isOpen || (!camera && !cameraId)) return null;
 
-  const effectiveCamera = camera ?? (detail ? { id: detail.Id, name: detail.Name, address: detail.Name, ward: '', district: '', lat: detail.Latitude, lng: detail.Longitude } : null);
+  const effectiveCamera = camera;
 
   const rainLevel = rainData?.rainLevel ?? RAIN_LEVEL_CONFIG.NO_RAIN;
   const rainStatus = getRainStatus(rainLevel);
@@ -158,11 +127,11 @@ export default function CameraDetailPanel({
     // Fallback: nếu không parse được (ví dụ "5 phút trước") hiển thị trực tiếp
     return rainData.timestamp;
   })();
-  const displayName = effectiveCamera?.name ?? detail?.Name ?? 'Camera';
+  const displayName = effectiveCamera?.name ?? 'Camera';
   /** Link ảnh camera trực tiếp từ API (StreamUrl).
    *  Khi FE chạy trên HTTPS (GitHub Pages), browser chặn mixed content (HTTP image).
    *  Tự động đổi http:// → https:// để tránh bị block. */
-  const rawImageUrl = detail?.StreamUrl ?? camera?.streamUrl ?? undefined;
+  const rawImageUrl = camera?.streamUrl ?? undefined;
   const imageUrl = rawImageUrl && window.location.protocol === 'https:'
     ? rawImageUrl.replace(/^http:\/\//i, 'https://')
     : rawImageUrl;
@@ -187,7 +156,7 @@ export default function CameraDetailPanel({
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-semibold text-gray-900 truncate">{displayName}</h2>
-              <p className="text-xs text-gray-600 mt-1 truncate">{effectiveCamera?.district ?? detail?.Name ?? ''}</p>
+              <p className="text-xs text-gray-600 mt-1 truncate">{effectiveCamera?.district ?? ''}</p>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               {isAuthenticated && effectiveCamera && (
@@ -295,30 +264,7 @@ export default function CameraDetailPanel({
             {/* Camera snapshot / image */}
             <div className="bg-gray-900 rounded-lg overflow-hidden">
               <div className="aspect-video bg-gray-800 flex items-center justify-center relative">
-                {detailLoading && (
-                  <div className="text-center text-gray-400">
-                    <svg className="w-10 h-10 mx-auto mb-2 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden>
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    <p className="text-sm">Đang tải hình ảnh...</p>
-                  </div>
-                )}
-                {detailLoading && !imageUrl && (
-                  <div className="text-center text-gray-400">
-                    <svg className="w-10 h-10 mx-auto mb-2 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden>
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    <p className="text-sm">Đang tải thông tin camera...</p>
-                  </div>
-                )}
-                {!detailLoading && detailError && !imageUrl && (
-                  <div className="text-center text-gray-400 px-4">
-                    <p className="text-sm">{detailError}</p>
-                  </div>
-                )}
-                {!showImage && !detailLoading && !detailError && (
+                {!showImage && (
                   <div className="text-center text-gray-400 px-4">
                     <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
