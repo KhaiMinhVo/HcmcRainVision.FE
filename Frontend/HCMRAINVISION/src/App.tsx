@@ -63,7 +63,6 @@ function App() {
           </NotificationsProvider>
         </FavoritesProvider>
       </AuthProvider>
-      </ChatbotProvider>
       <Toaster
         position="top-center"
         gutter={12}
@@ -80,6 +79,7 @@ function App() {
         }}
       />
       <ChatbotWidget />
+      </ChatbotProvider>
     </BrowserRouter>
   );
 }
