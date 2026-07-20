@@ -19,6 +19,7 @@ interface CameraDetailPanelProps {
   rainData: RainDataPoint | null;
   isOpen: boolean;
   onClose: () => void;
+  onViewOnMap: () => void;
 }
 
 /**
@@ -58,6 +59,7 @@ export default function CameraDetailPanel({
   rainData,
   isOpen,
   onClose,
+  onViewOnMap,
 }: CameraDetailPanelProps) {
   const [imageError, setImageError] = useState(false);
 
@@ -319,9 +321,7 @@ export default function CameraDetailPanel({
           {/* Footer Actions */}
           <div className="p-4 border-t border-gray-200 bg-gray-50">
             <button
-              onClick={() => {
-                onClose();
-              }}
+              onClick={onViewOnMap}
               className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
             >
               View on Map

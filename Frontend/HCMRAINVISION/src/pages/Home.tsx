@@ -60,6 +60,15 @@ export default function Home() {
     return cameras.find((c) => c.id === selectedCameraId) ?? null;
   }, [selectedCameraId, cameras]);
 
+  // A camera selected from Favorites must stay available to the map even when
+  // the current search/filter would otherwise hide it.
+  const camerasOnMap = useMemo(() => {
+    if (!selectedCamera || filteredCameras.some((camera) => camera.id === selectedCamera.id)) {
+      return filteredCameras;
+    }
+    return [...filteredCameras, selectedCamera];
+  }, [filteredCameras, selectedCamera]);
+
   const selectedCameraRainData = useMemo((): RainDataPoint | null => {
     if (!selectedCameraId) return null;
     return currentRainData.find((p) => p.id === selectedCameraId) ?? null;
@@ -85,6 +94,12 @@ export default function Home() {
     setSelectedCameraId(null);
   };
 
+  const handleViewOnMap = () => {
+    setIsDetailPanelOpen(false);
+    // Keep the selected pin visible and explicitly focus it again.
+    setPanTrigger((previous) => previous + 1);
+  };
+
   if (loading && cameras.length === 0) {
     return <HomeLoadingSkeleton />;
   }
@@ -101,7 +116,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen h-dvh overflow-hidden bg-gray-50 flex flex-col">
       <Header
         onSearchChange={setSearchQuery}
         onDistrictFilterChange={setDistrictFilter}
@@ -112,7 +127,7 @@ export default function Home() {
         onOpenCheckRoute={() => setCheckRouteOpen(true)}
       />
 
-      <main className="flex-1 flex overflow-hidden">
+      <main className="flex-1 min-h-0 flex overflow-hidden">
         <div className={`hidden sm:flex sm:flex-col transition-all duration-300 ${
           isSidebarCollapsed ? 'w-0' : 'w-80 lg:w-96'
         }`}>
@@ -138,7 +153,7 @@ export default function Home() {
           <div className="flex-1 relative min-h-0 overflow-hidden">
             <MapView
               rainData={currentRainData}
-              cameras={filteredCameras}
+              cameras={camerasOnMap}
               selectedCameraId={selectedCameraId}
               onCameraClick={handleCameraSelect}
               heatmapPoints={heatmapPoints}
@@ -161,6 +176,7 @@ export default function Home() {
         rainData={selectedCameraRainData}
         isOpen={isDetailPanelOpen}
         onClose={handleCloseDetailPanel}
+        onViewOnMap={handleViewOnMap}
       />
 
       <CheckRouteDrawer isOpen={checkRouteOpen} onClose={() => setCheckRouteOpen(false)} />

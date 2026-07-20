@@ -209,7 +209,9 @@ export default function MapView({
     map.invalidateSize({ animate: false });
 
     const targetZoom = Math.max(map.getZoom(), MAP_CONFIG.MIN_ZOOM_ON_SELECT);
-    map.setView([selected.lat, selected.lng], targetZoom, { animate: true });
+    // Focus immediately. A queued Leaflet pan/zoom animation can otherwise
+    // leave the pin between two cameras when selections happen quickly.
+    map.setView([selected.lat, selected.lng], targetZoom, { animate: false });
   }, [selectedCameraId, panTrigger]);
 
   // Update markers (pins and circles)
