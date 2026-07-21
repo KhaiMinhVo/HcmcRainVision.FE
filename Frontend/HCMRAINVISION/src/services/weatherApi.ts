@@ -99,7 +99,20 @@ export async function checkRoute(request: CheckRouteRequestDto): Promise<{
   IsSafe: boolean;
   Warnings: Array<{ Lat: number; Lng: number; Message: string }>;
 }> {
-  return apiPost('api/Weather/check-route', request);
+  const raw = await apiPost<Record<string, unknown>>('api/Weather/check-route', request);
+  const warningsValue = raw.Warnings ?? raw.warnings;
+  const warnings = Array.isArray(warningsValue) ? warningsValue : [];
+  return {
+    IsSafe: Boolean(raw.IsSafe ?? raw.isSafe),
+    Warnings: warnings.map((item) => {
+      const warning = (item ?? {}) as Record<string, unknown>;
+      return {
+        Lat: Number(warning.Lat ?? warning.lat ?? 0),
+        Lng: Number(warning.Lng ?? warning.lng ?? 0),
+        Message: String(warning.Message ?? warning.message ?? 'Khu vực có nguy cơ mưa'),
+      };
+    }),
+  };
 }
 
 export async function reportIncorrectPrediction(body: ReportDto): Promise<{ message: string }> {
