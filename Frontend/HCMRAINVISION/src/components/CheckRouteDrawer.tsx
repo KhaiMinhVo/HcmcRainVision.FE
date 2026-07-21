@@ -16,11 +16,24 @@ type RouteResult = {
 
 type ResolvedAddress = RoutePointDto & { displayName: string };
 type AddressSuggestion = ResolvedAddress & { id: string };
+type DrivingRoute = {
+  points: RoutePointDto[];
+  distanceMeters: number;
+  durationSeconds: number;
+};
+type RouteSuggestion = {
+  isAlternative: boolean;
+  originalWarningCount: number;
+  selectedWarningCount: number;
+  distanceMeters: number;
+  durationSeconds: number;
+  alternativesChecked: number;
+};
 
 const START_EXAMPLE = 'Chợ Bến Thành, Quận 1, TP.HCM';
-const END_EXAMPLE = 'Landmark 81, Bình Thạnh, TP.HCM';
+const END_EXAMPLE = 'Sân bay Tân Sơn Nhất, Tân Bình, TP.HCM';
 const START_POINT: ResolvedAddress = { Lat: 10.77252, Lng: 106.69802, displayName: START_EXAMPLE };
-const END_POINT: ResolvedAddress = { Lat: 10.79510, Lng: 106.72180, displayName: END_EXAMPLE };
+const END_POINT: ResolvedAddress = { Lat: 10.81880, Lng: 106.65190, displayName: END_EXAMPLE };
 
 async function geocodeAddress(address: string): Promise<ResolvedAddress> {
   const query = /hồ chí minh|ho chi minh|tp\.?hcm/i.test(address) ? address : `${address}, TP. Hồ Chí Minh`;
@@ -77,14 +90,24 @@ async function searchAddresses(address: string, signal: AbortSignal): Promise<Ad
   });
 }
 
-async function buildDrivingRoute(origin: RoutePointDto, destination: RoutePointDto): Promise<RoutePointDto[]> {
+async function buildDrivingRoutes(origin: RoutePointDto, destination: RoutePointDto): Promise<DrivingRoute[]> {
   const coordinates = `${origin.Lng},${origin.Lat};${destination.Lng},${destination.Lat}`;
-  const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson`);
+  const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson&alternatives=3`);
   if (!response.ok) throw new Error('Không thể tải đường đi trên bản đồ.');
-  const data = await response.json() as { routes?: Array<{ geometry?: { coordinates?: number[][] } }> };
-  const route = data.routes?.[0]?.geometry?.coordinates;
-  if (!route?.length) throw new Error('Không tìm thấy đường đi giữa hai địa chỉ này.');
-  return route.map(([lng, lat]) => ({ Lat: lat, Lng: lng }));
+  const data = await response.json() as {
+    routes?: Array<{ distance?: number; duration?: number; geometry?: { coordinates?: number[][] } }>;
+  };
+  const routes = (data.routes ?? []).flatMap((route) => {
+    const coordinatesList = route.geometry?.coordinates;
+    if (!coordinatesList?.length) return [];
+    return [{
+      points: coordinatesList.map(([lng, lat]) => ({ Lat: lat, Lng: lng })),
+      distanceMeters: Number(route.distance ?? 0),
+      durationSeconds: Number(route.duration ?? 0),
+    }];
+  });
+  if (!routes.length) throw new Error('Không tìm thấy đường đi giữa hai địa chỉ này.');
+  return routes;
 }
 
 export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerProps) {
@@ -99,6 +122,7 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
   const [startSuggestions, setStartSuggestions] = useState<AddressSuggestion[]>([]);
   const [endSuggestions, setEndSuggestions] = useState<AddressSuggestion[]>([]);
   const [activeInput, setActiveInput] = useState<'start' | 'end' | null>(null);
+  const [routeSuggestion, setRouteSuggestion] = useState<RouteSuggestion | null>(null);
 
   useEffect(() => {
     if (activeInput !== 'start' || startPoint || startAddress.trim().length < 3) {
@@ -139,6 +163,7 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
     setError(null);
     setResult(null);
     setRoutePoints([]);
+    setRouteSuggestion(null);
   };
 
   const handleSwap = () => {
@@ -149,6 +174,7 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
     setError(null);
     setResult(null);
     setRoutePoints([]);
+    setRouteSuggestion(null);
   };
 
   const handleCheck = async () => {
@@ -166,6 +192,8 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
     setError(null);
     setLoading(true);
     setResult(null);
+    setRoutePoints([]);
+    setRouteSuggestion(null);
     try {
       const [origin, destination] = await Promise.all([
         startPoint ?? geocodeAddress(originText),
@@ -174,18 +202,34 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
       setStartPoint(origin);
       setEndPoint(destination);
 
-      const drivingRoute = await buildDrivingRoute(origin, destination);
-      setRoutePoints(drivingRoute);
-      const payload: CheckRouteRequestDto = {
-        OriginLatitude: origin.Lat,
-        OriginLongitude: origin.Lng,
-        DestinationLatitude: destination.Lat,
-        DestinationLongitude: destination.Lng,
-        RoutePoints: drivingRoute,
-      };
-      const validated = validate('checkRoute', payload);
-      if (!validated.valid) throw new Error('Tọa độ tìm được không hợp lệ. Vui lòng thử địa chỉ khác.');
-      setResult(await checkRoute(validated.data as CheckRouteRequestDto));
+      const drivingRoutes = await buildDrivingRoutes(origin, destination);
+      const evaluations = await Promise.all(drivingRoutes.map(async (route, index) => {
+        const payload: CheckRouteRequestDto = {
+          OriginLatitude: origin.Lat,
+          OriginLongitude: origin.Lng,
+          DestinationLatitude: destination.Lat,
+          DestinationLongitude: destination.Lng,
+          RoutePoints: route.points,
+        };
+        const validated = validate('checkRoute', payload);
+        if (!validated.valid) throw new Error('Tọa độ tìm được không hợp lệ. Vui lòng thử địa chỉ khác.');
+        return { route, index, result: await checkRoute(validated.data as CheckRouteRequestDto) };
+      }));
+      const original = evaluations[0];
+      const selected = [...evaluations].sort((left, right) =>
+        left.result.Warnings.length - right.result.Warnings.length
+        || left.route.durationSeconds - right.route.durationSeconds
+      )[0];
+      setRoutePoints(selected.route.points);
+      setResult(selected.result);
+      setRouteSuggestion({
+        isAlternative: selected.index !== 0,
+        originalWarningCount: original.result.Warnings.length,
+        selectedWarningCount: selected.result.Warnings.length,
+        distanceMeters: selected.route.distanceMeters,
+        durationSeconds: selected.route.durationSeconds,
+        alternativesChecked: evaluations.length,
+      });
     } catch (caught) {
       const message = caught && typeof caught === 'object' && 'message' in caught
         ? String((caught as { message: string }).message)
@@ -205,6 +249,7 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
     setError(null);
     setResult(null);
     setRoutePoints([]);
+    setRouteSuggestion(null);
     setStartSuggestions([]);
     setEndSuggestions([]);
     setActiveInput(null);
@@ -298,12 +343,47 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
           {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
 
           <button type="button" onClick={handleCheck} disabled={loading || !startAddress.trim() || !endAddress.trim()} className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-50">
-            {loading ? 'Đang tìm địa chỉ và kiểm tra...' : 'Kiểm tra lộ trình'}
+            {loading ? 'Đang tìm và so sánh các tuyến...' : 'Tìm lộ trình tránh mưa'}
           </button>
+
+          {routeSuggestion && (
+            <div className={`rounded-lg border p-4 ${
+              routeSuggestion.selectedWarningCount === 0
+                ? 'border-green-200 bg-green-50'
+                : routeSuggestion.isAlternative
+                  ? 'border-amber-200 bg-amber-50'
+                  : 'border-orange-200 bg-orange-50'
+            }`} aria-live="polite">
+              <div className="flex items-start gap-3">
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg ${
+                  routeSuggestion.selectedWarningCount === 0 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                }`}>{routeSuggestion.selectedWarningCount === 0 ? '✓' : '!'}</span>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    {routeSuggestion.isAlternative
+                      ? 'Đã tìm thấy tuyến ít mưa hơn'
+                      : routeSuggestion.selectedWarningCount === 0
+                        ? 'Tuyến đề xuất không có cảnh báo mưa'
+                        : 'Chưa có tuyến thay thế tốt hơn'}
+                  </h3>
+                  <p className="mt-1 text-sm leading-5 text-gray-700">
+                    {routeSuggestion.isAlternative
+                      ? `Giảm từ ${routeSuggestion.originalWarningCount} xuống ${routeSuggestion.selectedWarningCount} cảnh báo mưa.`
+                      : routeSuggestion.selectedWarningCount === 0
+                        ? `Đã kiểm tra ${routeSuggestion.alternativesChecked} tuyến và chọn tuyến phù hợp nhất.`
+                        : `Cả ${routeSuggestion.alternativesChecked} tuyến đều còn khu vực có nguy cơ mưa. Bạn nên chuẩn bị áo mưa hoặc đổi giờ đi.`}
+                  </p>
+                  <p className="mt-2 text-xs font-medium text-gray-600">
+                    {(routeSuggestion.distanceMeters / 1000).toFixed(1)} km · khoảng {Math.max(1, Math.round(routeSuggestion.durationSeconds / 60))} phút
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {routePoints.length >= 2 && (
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-800">Bản đồ hướng dẫn đường đi</h3>
+              <h3 className="text-sm font-semibold text-gray-800">Bản đồ tuyến được đề xuất</h3>
               <RoutePreviewMap points={routePoints} />
             </div>
           )}

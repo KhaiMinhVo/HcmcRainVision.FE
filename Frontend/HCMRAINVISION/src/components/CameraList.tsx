@@ -9,6 +9,7 @@ import WardDetailModal from './WardDetailModal';
 import { RAIN_LEVEL_CONFIG } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { useFavorites } from '../contexts/FavoritesContext';
+import { rankCamerasBySearch } from '../lib/cameraSearch';
 
 interface CameraListProps {
   cameras: CameraInfo[];
@@ -74,20 +75,9 @@ export default function CameraList({
     return map;
   }, [rainData]);
 
-  // Filter cameras based on search, district, and rain status
+  // District/rain remain true filters; text search ranks matches first.
   const filteredCameras = useMemo(() => {
-    return cameras.filter((camera) => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const matchesSearch =
-          camera.name.toLowerCase().includes(query) ||
-          camera.address.toLowerCase().includes(query) ||
-          camera.ward.toLowerCase().includes(query) ||
-          camera.district.toLowerCase().includes(query);
-        if (!matchesSearch) return false;
-      }
-
+    const filtered = cameras.filter((camera) => {
       // District filter
       if (districtFilter !== 'all' && camera.district !== districtFilter) {
         return false;
@@ -103,6 +93,7 @@ export default function CameraList({
 
       return true;
     });
+    return rankCamerasBySearch(filtered, searchQuery);
   }, [cameras, searchQuery, districtFilter, rainFilter, rainDataMap]);
 
   // Collapsed state - show toggle button
