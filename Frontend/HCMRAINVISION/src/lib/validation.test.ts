@@ -117,16 +117,23 @@ describe('validation', () => {
   });
 
   describe('checkRoute', () => {
-    it('accepts array of at least 2 points with Lat, Lng', () => {
-      const r = validate('checkRoute', [
-        { Lat: 10.77, Lng: 106.7 },
-        { Lat: 10.78, Lng: 106.71 },
-      ]);
+    it('accepts origin and destination coordinates', () => {
+      const r = validate('checkRoute', {
+        OriginLatitude: 10.77,
+        OriginLongitude: 106.7,
+        DestinationLatitude: 10.78,
+        DestinationLongitude: 106.71,
+        RoutePoints: [],
+      });
       expect(r.valid).toBe(true);
     });
 
-    it('rejects fewer than 2 points', () => {
-      const r = validate('checkRoute', [{ Lat: 10.77, Lng: 106.7 }]);
+    it('rejects a missing destination', () => {
+      const r = validate('checkRoute', {
+        OriginLatitude: 10.77,
+        OriginLongitude: 106.7,
+        RoutePoints: [],
+      });
       expect(r.valid).toBe(false);
     });
   });

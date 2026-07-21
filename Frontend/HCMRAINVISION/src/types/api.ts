@@ -80,6 +80,14 @@ export interface RoutePointDto {
   Lng: number;
 }
 
+export interface CheckRouteRequestDto {
+  OriginLatitude: number;
+  OriginLongitude: number;
+  DestinationLatitude: number;
+  DestinationLongitude: number;
+  RoutePoints: RoutePointDto[];
+}
+
 /** GET /api/weather/latest item */
 export interface WeatherLatestItemDto {
   Id: number;

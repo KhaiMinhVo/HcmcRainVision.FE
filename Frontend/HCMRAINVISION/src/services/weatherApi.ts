@@ -6,7 +6,7 @@ import type {
   WeatherLatestItemDto,
   HeatmapPointDto,
   ReportDto,
-  RoutePointDto,
+  CheckRouteRequestDto,
   RainingCameraDto,
 } from '../types/api';
 import type { RainDataPoint, RainLevel } from '../types';
@@ -95,11 +95,11 @@ export function mapRainingCameraToRainPoint(item: RainingCameraDto): RainDataPoi
   };
 }
 
-export async function checkRoute(routePoints: RoutePointDto[]): Promise<{
+export async function checkRoute(request: CheckRouteRequestDto): Promise<{
   IsSafe: boolean;
   Warnings: Array<{ Lat: number; Lng: number; Message: string }>;
 }> {
-  return apiPost('api/Weather/check-route', routePoints);
+  return apiPost('api/Weather/check-route', request);
 }
 
 export async function reportIncorrectPrediction(body: ReportDto): Promise<{ message: string }> {

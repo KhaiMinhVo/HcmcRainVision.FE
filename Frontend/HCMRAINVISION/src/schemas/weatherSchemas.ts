@@ -13,15 +13,25 @@ export const reportSchema = {
 } as const;
 
 export const checkRouteSchema = {
-  type: 'array',
-  minItems: 2,
-  items: {
-    type: 'object',
-    required: ['Lat', 'Lng'],
-    properties: {
-      Lat: { type: 'number' },
-      Lng: { type: 'number' },
+  type: 'object',
+  required: ['OriginLatitude', 'OriginLongitude', 'DestinationLatitude', 'DestinationLongitude', 'RoutePoints'],
+  properties: {
+    OriginLatitude: { type: 'number', minimum: -90, maximum: 90 },
+    OriginLongitude: { type: 'number', minimum: -180, maximum: 180 },
+    DestinationLatitude: { type: 'number', minimum: -90, maximum: 90 },
+    DestinationLongitude: { type: 'number', minimum: -180, maximum: 180 },
+    RoutePoints: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['Lat', 'Lng'],
+        properties: {
+          Lat: { type: 'number' },
+          Lng: { type: 'number' },
+        },
+        additionalProperties: false,
+      },
     },
-    additionalProperties: false,
   },
+  additionalProperties: false,
 } as const;
