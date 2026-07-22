@@ -63,6 +63,7 @@ function addMarkers(
   cameras.forEach((camera) => {
     const rainPoint = rainDataMap.get(camera.id);
     const rainLevel = rainPoint?.rainLevel ?? RAIN_LEVEL_CONFIG.NO_RAIN;
+    const hasWeatherData = rainPoint != null;
     const isSelected = selectedCameraId === camera.id;
     const color = MARKER_COLORS[rainLevel];
     const radius = MARKER_RADIUS[rainLevel];
@@ -91,13 +92,17 @@ function addMarkers(
     }
 
     const rainStatusClass =
-      rainLevel === RAIN_LEVEL_CONFIG.NO_RAIN
+      !hasWeatherData
+        ? 'bg-slate-100 text-slate-500'
+        : rainLevel === RAIN_LEVEL_CONFIG.NO_RAIN
         ? 'bg-gray-200 text-gray-700'
         : rainLevel === RAIN_LEVEL_CONFIG.LIGHT_RAIN
         ? 'bg-yellow-400 text-yellow-900'
         : 'bg-red-500 text-white';
     const rainStatusText =
-      rainLevel === RAIN_LEVEL_CONFIG.NO_RAIN
+      !hasWeatherData
+        ? 'No data'
+        : rainLevel === RAIN_LEVEL_CONFIG.NO_RAIN
         ? 'No Rain'
         : rainLevel === RAIN_LEVEL_CONFIG.LIGHT_RAIN
         ? 'Light Rain'

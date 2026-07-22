@@ -32,10 +32,10 @@ export function useCamerasAndWeather(): UseCamerasAndWeatherResult {
     setError(null);
     setLoading(true);
     try {
-      const [camerasRaw, wards, rainingCameras, heatmap, districtsFromApi] = await Promise.all([
+      const [camerasRaw, wards, latestWeather, heatmap, districtsFromApi] = await Promise.all([
         cameraApi.getCameras(),
         locationApi.getWards(),
-        weatherApi.getRainingCameras(30), // Get cameras that are raining in last 30 minutes
+        weatherApi.getLatestWeather(),
         weatherApi.getRainHeatmap(),
         locationApi.getDistricts().catch(() => [] as string[]),
       ]);
@@ -46,36 +46,8 @@ export function useCamerasAndWeather(): UseCamerasAndWeatherResult {
         if (c.district) districtSet.add(c.district);
       });
       
-      // Build rain data: map raining cameras to rainPoints, other cameras = no rain
-      const rainingCameraMap = new Map<string, typeof rainingCameras[0]>();
-      rainingCameras.forEach((rc) => {
-        rainingCameraMap.set(rc.CameraId, rc);
-      });
-      
-      console.debug('[useCamerasAndWeather.refetch] rainingCameras:', rainingCameras.length);
-      console.debug('[useCamerasAndWeather.refetch] rainingCameras IDs:', rainingCameras.map(rc => rc.CameraId));
-      console.debug('[useCamerasAndWeather.refetch] cameraList:', cameraList.length);
-      console.debug('[useCamerasAndWeather.refetch] cameraList IDs:', cameraList.map(c => c.id));
-      console.debug('[useCamerasAndWeather.refetch] rainingCameraMap:', Array.from(rainingCameraMap.entries()));
-      
-      const allRainData: RainDataPoint[] = cameraList.map((camera) => {
-        const rainingCamera = rainingCameraMap.get(camera.id);
-        const result = rainingCamera 
-          ? weatherApi.mapRainingCameraToRainPoint(rainingCamera)
-          : {
-              id: camera.id,
-              lat: camera.lat,
-              lng: camera.lng,
-              rainLevel: 0 as const,
-              timestamp: new Date().toISOString(),
-            };
-        if (rainingCamera) {
-          console.debug(`[useCamerasAndWeather.refetch] MATCHED Camera ${camera.id}:`, result);
-        }
-        return result;
-      });
-      
-      console.debug('[useCamerasAndWeather.refetch] allRainData with rain:', allRainData.filter(d => d.rainLevel > 0));
+      // Absence from /latest means "no data", not "no rain".
+      const allRainData: RainDataPoint[] = latestWeather.map(weatherApi.mapLatestToRainPoint);
       setCameras(cameraList);
       setRainData(allRainData);
       setHeatmapPoints(heatmap.map((p) => [p.Lat, p.Lng, p.Intensity]));
@@ -95,31 +67,12 @@ export function useCamerasAndWeather(): UseCamerasAndWeatherResult {
     // Auto-refresh weather data every 30 seconds (cameras & wards less frequently)
     const weatherInterval = setInterval(async () => {
       try {
-        const [rainingCameras, heatmap] = await Promise.all([
-          weatherApi.getRainingCameras(30),
+        const [latestWeather, heatmap] = await Promise.all([
+          weatherApi.getLatestWeather(),
           weatherApi.getRainHeatmap(),
         ]);
         
-        // Rebuild rain data with fresh data
-        setRainData((prevCameras) => {
-          const rainingCameraMap = new Map<string, typeof rainingCameras[0]>();
-          rainingCameras.forEach((rc) => {
-            rainingCameraMap.set(rc.CameraId, rc);
-          });
-          
-          return prevCameras.map((rainPoint) => {
-            const rainingCamera = rainingCameraMap.get(rainPoint.id);
-            if (rainingCamera) {
-              return weatherApi.mapRainingCameraToRainPoint(rainingCamera);
-            }
-            // No rain for this camera
-            return {
-              ...rainPoint,
-              rainLevel: 0,
-              timestamp: new Date().toISOString(),
-            };
-          });
-        });
+        setRainData(latestWeather.map(weatherApi.mapLatestToRainPoint));
         
         setHeatmapPoints(heatmap.map((p) => [p.Lat, p.Lng, p.Intensity]));
       } catch (e) {

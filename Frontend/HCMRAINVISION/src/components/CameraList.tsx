@@ -26,7 +26,15 @@ interface CameraListProps {
 /**
  * Get rain status information for a camera
  */
-const getRainStatus = (rainLevel: number) => {
+const getRainStatus = (rainLevel?: number) => {
+  if (rainLevel == null) {
+    return {
+      level: null,
+      label: 'Chưa có dữ liệu',
+      color: 'bg-slate-100',
+      textColor: 'text-slate-500',
+    };
+  }
   if (rainLevel === RAIN_LEVEL_CONFIG.NO_RAIN) {
     return {
       level: RAIN_LEVEL_CONFIG.NO_RAIN,
@@ -88,7 +96,7 @@ export default function CameraList({
         const rainPoint = rainDataMap.get(camera.id);
         const hasRain = rainPoint?.rainLevel && rainPoint.rainLevel > RAIN_LEVEL_CONFIG.NO_RAIN;
         if (rainFilter === 'rain' && !hasRain) return false;
-        if (rainFilter === 'no-rain' && hasRain) return false;
+        if (rainFilter === 'no-rain' && (!rainPoint || hasRain)) return false;
       }
 
       return true;
@@ -144,8 +152,7 @@ export default function CameraList({
           <div className="divide-y divide-gray-100">
             {filteredCameras.map((camera) => {
               const rainPoint = rainDataMap.get(camera.id);
-              const rainLevel = rainPoint?.rainLevel ?? RAIN_LEVEL_CONFIG.NO_RAIN;
-              const rainStatus = getRainStatus(rainLevel);
+              const rainStatus = getRainStatus(rainPoint?.rainLevel);
               const isSelected = selectedCameraId === camera.id;
 
               const favorited = isAuthenticated && isFavorite(camera.id);

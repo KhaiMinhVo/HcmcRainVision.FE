@@ -119,7 +119,9 @@ export default function CameraDetailPanel({
   const effectiveCamera = camera;
 
   const rainLevel = rainData?.rainLevel ?? RAIN_LEVEL_CONFIG.NO_RAIN;
-  const rainStatus = getRainStatus(rainLevel);
+  const rainStatus = rainData
+    ? getRainStatus(rainLevel)
+    : { level: null, label: 'Chưa có dữ liệu', color: 'bg-slate-100', textColor: 'text-slate-500', icon: '—' };
   const favorited = isAuthenticated && effectiveCamera && isFavorite(effectiveCamera.id);
   const lastUpdate = (() => {
     if (!rainData?.timestamp) return 'Chưa có dữ liệu';

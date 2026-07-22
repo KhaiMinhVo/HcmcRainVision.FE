@@ -40,7 +40,7 @@ export default function Home() {
         const rainPoint = currentRainData.find((p) => p.id === camera.id);
         const hasRain = rainPoint?.rainLevel != null && rainPoint.rainLevel > RAIN_LEVEL_CONFIG.NO_RAIN;
         if (rainFilter === 'rain' && !hasRain) return false;
-        if (rainFilter === 'no-rain' && hasRain) return false;
+        if (rainFilter === 'no-rain' && (!rainPoint || hasRain)) return false;
       }
       return true;
     });
