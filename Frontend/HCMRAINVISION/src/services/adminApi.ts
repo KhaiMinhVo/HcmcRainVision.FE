@@ -147,6 +147,39 @@ export async function getAuditData(): Promise<AuditDataItemDto[]> {
   });
 }
 
+export interface TrainingImageCandidate {
+  WeatherLogId: number;
+  CameraId: string;
+  ImageUrl: string;
+  RawIsRaining: boolean;
+  RawConfidence: number;
+  IsRaining: boolean;
+  Timestamp: string;
+}
+
+export async function getTrainingImages(limit = 100): Promise<TrainingImageCandidate[]> {
+  const raw = await apiGet<unknown>(`${prefix}/training-images?reviewed=false&limit=${limit}`);
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    const o = (item as UnknownRecord) ?? {};
+    return {
+      WeatherLogId: Number(prop<number>(o, 'WeatherLogId', 'weatherLogId') ?? 0),
+      CameraId: String(prop<string>(o, 'CameraId', 'cameraId') ?? ''),
+      ImageUrl: String(prop<string>(o, 'ImageUrl', 'imageUrl') ?? ''),
+      RawIsRaining: Boolean(prop<boolean>(o, 'RawIsRaining', 'rawIsRaining')),
+      RawConfidence: Number(prop<number>(o, 'RawConfidence', 'rawConfidence') ?? 0),
+      IsRaining: Boolean(prop<boolean>(o, 'IsRaining', 'isRaining')),
+      Timestamp: String(prop<string>(o, 'Timestamp', 'timestamp') ?? ''),
+    };
+  });
+}
+
+export type TrainingLabel = 'Rain' | 'NoRain' | 'Uncertain' | 'InvalidImage';
+
+export async function reviewTrainingImage(weatherLogId: number, label: TrainingLabel): Promise<void> {
+  await apiPost(`${prefix}/training-images/${weatherLogId}/review`, { label });
+}
+
 /** PUT /api/admin/users/{id}/ban – toggle ban */
 export async function toggleBanUser(id: number): Promise<{ message: string }> {
   return apiPut<{ message: string }>(`${prefix}/users/${id}/ban`, {});

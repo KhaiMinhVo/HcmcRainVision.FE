@@ -45,14 +45,14 @@ const getRainStatus = (rainLevel?: number) => {
   if (rainLevel === RAIN_LEVEL_CONFIG.LIGHT_RAIN) {
     return {
       level: RAIN_LEVEL_CONFIG.LIGHT_RAIN,
-      label: 'Mưa nhẹ',
+      label: 'Đang xác minh',
       color: 'bg-yellow-400',
       textColor: 'text-yellow-900',
     };
   }
   return {
     level: RAIN_LEVEL_CONFIG.HEAVY_RAIN,
-    label: 'Mưa nặng',
+    label: 'Có mưa',
     color: 'bg-red-500',
     textColor: 'text-white',
   };

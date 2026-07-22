@@ -25,7 +25,7 @@ export default function Legend({ showHeatmap = false, onToggleHeatmap }: LegendP
         <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        Chú thích mức mưa
+        Chú thích trạng thái mưa
       </h3>
       <div className="space-y-4">
         <div className="flex items-start gap-3 pb-3 border-b border-gray-100">
@@ -38,15 +38,15 @@ export default function Legend({ showHeatmap = false, onToggleHeatmap }: LegendP
         <div className="flex items-start gap-3 pb-3 border-b border-gray-100">
           <div className="w-5 h-5 rounded-full bg-yellow-400 border-2 border-yellow-500 flex-shrink-0 mt-0.5"></div>
           <div className="flex-1 min-w-0">
-            <span className="text-sm font-medium text-gray-800 block">Mưa nhẹ</span>
-            <p className="text-xs text-gray-500 mt-0.5">Mưa phùn hoặc mưa rào nhẹ</p>
+            <span className="text-sm font-medium text-gray-800 block">Đang xác minh</span>
+            <p className="text-xs text-gray-500 mt-0.5">Chưa đủ số lần quét để kết luận</p>
           </div>
         </div>
         <div className="flex items-start gap-3 pb-3">
           <div className="w-5 h-5 rounded-full bg-red-500 border-2 border-red-600 flex-shrink-0 mt-0.5"></div>
           <div className="flex-1 min-w-0">
-            <span className="text-sm font-medium text-gray-800 block">Mưa nặng</span>
-            <p className="text-xs text-gray-500 mt-0.5">Mưa to được phát hiện</p>
+            <span className="text-sm font-medium text-gray-800 block">Có mưa</span>
+            <p className="text-xs text-gray-500 mt-0.5">Đã xác nhận qua nhiều lần quét</p>
           </div>
         </div>
       </div>

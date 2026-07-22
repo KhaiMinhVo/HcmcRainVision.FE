@@ -18,6 +18,7 @@ function rawToWeatherLatestItem(raw: Record<string, unknown>): WeatherLatestItem
     Latitude: Number(raw.latitude ?? raw.Latitude ?? 0),
     Longitude: Number(raw.longitude ?? raw.Longitude ?? 0),
     IsRaining: Boolean(raw.isRaining ?? raw.IsRaining),
+    IsPotentialRain: Boolean(raw.isPotentialRain ?? raw.IsPotentialRain),
     Confidence: Number(raw.confidence ?? raw.Confidence ?? 0),
     TimeAgo: String((raw.timeAgo ?? raw.TimeAgo) ?? ''),
     Timestamp: String((raw.timestamp ?? raw.Timestamp) ?? ''),
@@ -85,7 +86,7 @@ export async function getRainingCameras(minutes = 30): Promise<RainingCameraDto[
 }
 
 export function mapRainingCameraToRainPoint(item: RainingCameraDto): RainDataPoint {
-  const rainLevel: RainLevel = item.Confidence >= 0.7 ? 2 : 1;
+  const rainLevel: RainLevel = 2;
   return {
     id: item.CameraId,
     lat: item.Latitude,
@@ -130,7 +131,9 @@ export async function testAi(imageFile: File): Promise<unknown> {
 export function mapLatestToRainPoint(item: WeatherLatestItemDto): RainDataPoint {
   let rainLevel: RainLevel = 0;
   if (item.IsRaining) {
-    rainLevel = item.Confidence >= 0.7 ? 2 : 1;
+    rainLevel = 2;
+  } else if (item.IsPotentialRain) {
+    rainLevel = 1;
   }
   return {
     id: item.CameraId, // Use CameraId to match with camera list

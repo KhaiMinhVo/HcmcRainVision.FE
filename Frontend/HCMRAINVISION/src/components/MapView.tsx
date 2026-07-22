@@ -110,8 +110,8 @@ function addMarkers(
         : rainLevel === RAIN_LEVEL_CONFIG.NO_RAIN
         ? 'No Rain'
         : rainLevel === RAIN_LEVEL_CONFIG.LIGHT_RAIN
-        ? 'Light Rain'
-        : 'Heavy Rain';
+        ? 'Awaiting confirmation'
+        : 'Rain confirmed';
 
     const popupContent = document.createElement('div');
     popupContent.className = 'p-2';

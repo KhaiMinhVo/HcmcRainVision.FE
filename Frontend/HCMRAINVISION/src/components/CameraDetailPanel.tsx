@@ -38,7 +38,7 @@ const getRainStatus = (rainLevel: number) => {
   if (rainLevel === RAIN_LEVEL_CONFIG.LIGHT_RAIN) {
     return {
       level: RAIN_LEVEL_CONFIG.LIGHT_RAIN,
-      label: 'Mưa nhẹ',
+      label: 'Đang xác minh',
       color: 'bg-yellow-400',
       textColor: 'text-yellow-900',
       icon: '🌦️',
@@ -46,7 +46,7 @@ const getRainStatus = (rainLevel: number) => {
   }
   return {
     level: RAIN_LEVEL_CONFIG.HEAVY_RAIN,
-    label: 'Mưa nặng',
+    label: 'Có mưa',
     color: 'bg-red-500',
     textColor: 'text-white',
     icon: '🌧️',
@@ -302,7 +302,7 @@ export default function CameraDetailPanel({
               <div className="space-y-2">
                 {[
                   { label: 'Không mưa', className: 'bg-gray-100 text-gray-800' },
-                  { label: 'Mưa nhẹ', className: 'bg-yellow-100 text-yellow-800' },
+                  { label: 'Đang xác minh', className: 'bg-yellow-100 text-yellow-800' },
                   { label: 'Không mưa', className: 'bg-gray-100 text-gray-800' },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center justify-between text-sm py-2 border-b border-gray-200 last:border-0">

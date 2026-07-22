@@ -95,6 +95,7 @@ export interface WeatherLatestItemDto {
   Latitude: number;
   Longitude: number;
   IsRaining: boolean;
+  IsPotentialRain?: boolean;
   Confidence: number;
   TimeAgo: string;
   /** ISO 8601 timestamp của lần scan gần nhất */

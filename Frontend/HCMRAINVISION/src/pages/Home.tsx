@@ -103,7 +103,9 @@ export default function Home() {
   }, [selectedCameraId, currentRainData]);
 
   const camerasWithRain = useMemo(() => {
-    return currentRainData.filter((p) => p.rainLevel > RAIN_LEVEL_CONFIG.NO_RAIN).length;
+    return currentRainData.filter((p) =>
+      !p.id.startsWith('CAM_TEST') && p.rainLevel > RAIN_LEVEL_CONFIG.NO_RAIN
+    ).length;
   }, [currentRainData]);
 
   const { isAuthenticated } = useAuth();

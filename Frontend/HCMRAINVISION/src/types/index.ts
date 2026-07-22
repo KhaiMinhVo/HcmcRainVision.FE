@@ -5,8 +5,8 @@
 /**
  * Rain level enumeration
  * 0 = No rain
- * 1 = Light rain
- * 2 = Heavy rain
+ * 1 = Possible rain, waiting for temporal confirmation
+ * 2 = Rain confirmed by multiple scans
  */
 export type RainLevel = 0 | 1 | 2;
 
