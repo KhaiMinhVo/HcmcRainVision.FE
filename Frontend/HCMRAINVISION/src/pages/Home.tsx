@@ -35,6 +35,15 @@ export default function Home() {
 
   const filteredCameras = useMemo(() => {
     return cameras.filter((camera) => {
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch =
+          camera.name.toLowerCase().includes(query) ||
+          camera.address.toLowerCase().includes(query) ||
+          camera.ward.toLowerCase().includes(query) ||
+          camera.district.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
       if (districtFilter !== 'all' && camera.district !== districtFilter) return false;
       if (rainFilter !== 'all') {
         const rainPoint = currentRainData.find((p) => p.id === camera.id);
@@ -44,7 +53,7 @@ export default function Home() {
       }
       return true;
     });
-  }, [cameras, districtFilter, rainFilter, currentRainData]);
+  }, [cameras, searchQuery, districtFilter, rainFilter, currentRainData]);
 
   const selectedCamera = useMemo(() => {
     if (!selectedCameraId) return null;

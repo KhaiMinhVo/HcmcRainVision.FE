@@ -9,7 +9,6 @@ import WardDetailModal from './WardDetailModal';
 import { RAIN_LEVEL_CONFIG } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
 import { useFavorites } from '../contexts/FavoritesContext';
-import { rankCamerasBySearch } from '../lib/cameraSearch';
 
 interface CameraListProps {
   cameras: CameraInfo[];
@@ -72,7 +71,7 @@ export default function CameraList({
 }: CameraListProps) {
   const [wardDetailId, setWardDetailId] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
-  const { isFavorite, toggleFavorite } = useFavorites();
+  const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
 
   // Create a map of camera ID to rain level for efficient lookup
   const rainDataMap = useMemo(() => {
@@ -83,9 +82,19 @@ export default function CameraList({
     return map;
   }, [rainData]);
 
-  // District/rain remain true filters; text search ranks matches first.
+  // Filter cameras, then keep favorites at the top of the list.
   const filteredCameras = useMemo(() => {
     const filtered = cameras.filter((camera) => {
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch =
+          camera.name.toLowerCase().includes(query) ||
+          camera.address.toLowerCase().includes(query) ||
+          camera.ward.toLowerCase().includes(query) ||
+          camera.district.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+
       // District filter
       if (districtFilter !== 'all' && camera.district !== districtFilter) {
         return false;
@@ -101,8 +110,14 @@ export default function CameraList({
 
       return true;
     });
-    return rankCamerasBySearch(filtered, searchQuery);
-  }, [cameras, searchQuery, districtFilter, rainFilter, rainDataMap]);
+    return filtered
+      .map((camera, index) => ({ camera, index }))
+      .sort((left, right) =>
+        Number(favoriteIds.has(right.camera.id)) - Number(favoriteIds.has(left.camera.id))
+        || left.index - right.index
+      )
+      .map(({ camera }) => camera);
+  }, [cameras, searchQuery, districtFilter, rainFilter, rainDataMap, favoriteIds]);
 
   // Collapsed state - show toggle button
   if (isCollapsed) {
