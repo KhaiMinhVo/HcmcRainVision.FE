@@ -3,10 +3,15 @@ import { checkRoute } from '../services/weatherApi';
 import { validate } from '../lib/validation';
 import type { CheckRouteRequestDto, RoutePointDto } from '../types/api';
 import RoutePreviewMap from './RoutePreviewMap';
+import type { UserLocation } from '../types/location';
 
 interface CheckRouteDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  userLocation: UserLocation | null;
+  locationLoading: boolean;
+  locationError: string | null;
+  onRequestLocation: () => void;
 }
 
 type RouteResult = {
@@ -110,7 +115,7 @@ async function buildDrivingRoutes(origin: RoutePointDto, destination: RoutePoint
   return routes;
 }
 
-export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerProps) {
+export default function CheckRouteDrawer({ isOpen, onClose, userLocation, locationLoading, locationError, onRequestLocation }: CheckRouteDrawerProps) {
   const [startAddress, setStartAddress] = useState(START_EXAMPLE);
   const [endAddress, setEndAddress] = useState(END_EXAMPLE);
   const [startPoint, setStartPoint] = useState<ResolvedAddress | null>(START_POINT);
@@ -123,6 +128,27 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
   const [endSuggestions, setEndSuggestions] = useState<AddressSuggestion[]>([]);
   const [activeInput, setActiveInput] = useState<'start' | 'end' | null>(null);
   const [routeSuggestion, setRouteSuggestion] = useState<RouteSuggestion | null>(null);
+  const [pendingLocationTarget, setPendingLocationTarget] = useState<'start' | 'end' | null>(null);
+
+  useEffect(() => {
+    if (!userLocation || !pendingLocationTarget) return;
+    const point: ResolvedAddress = {
+      Lat: userLocation.lat,
+      Lng: userLocation.lng,
+      displayName: 'Vị trí của tôi',
+    };
+    if (pendingLocationTarget === 'start') {
+      setStartAddress(point.displayName);
+      setStartPoint(point);
+      setStartSuggestions([]);
+    } else {
+      setEndAddress(point.displayName);
+      setEndPoint(point);
+      setEndSuggestions([]);
+    }
+    setPendingLocationTarget(null);
+    setActiveInput(null);
+  }, [pendingLocationTarget, userLocation]);
 
   useEffect(() => {
     if (activeInput !== 'start' || startPoint || startAddress.trim().length < 3) {
@@ -171,6 +197,34 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
     setEndAddress(startAddress);
     setStartPoint(endPoint);
     setEndPoint(startPoint);
+    setError(null);
+    setResult(null);
+    setRoutePoints([]);
+    setRouteSuggestion(null);
+  };
+
+  const useCurrentLocation = (isStart: boolean) => {
+    if (!userLocation) {
+      setPendingLocationTarget(isStart ? 'start' : 'end');
+      onRequestLocation();
+      return;
+    }
+    const point: ResolvedAddress = {
+      Lat: userLocation.lat,
+      Lng: userLocation.lng,
+      displayName: 'Vị trí của tôi',
+    };
+    if (isStart) {
+      setStartAddress(point.displayName);
+      setStartPoint(point);
+      setStartSuggestions([]);
+    } else {
+      setEndAddress(point.displayName);
+      setEndPoint(point);
+      setEndSuggestions([]);
+    }
+    setActiveInput(null);
+    setPendingLocationTarget(null);
     setError(null);
     setResult(null);
     setRoutePoints([]);
@@ -253,6 +307,7 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
     setStartSuggestions([]);
     setEndSuggestions([]);
     setActiveInput(null);
+    setPendingLocationTarget(null);
   };
 
   if (!isOpen) return null;
@@ -266,6 +321,7 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
     suggestions: AddressSuggestion[],
     inputName: 'start' | 'end',
     onSelect: (suggestion: AddressSuggestion) => void,
+    onUseCurrentLocation: () => void,
   ) => (
     <label className="block">
       <span className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -285,8 +341,18 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
           onFocus={() => setActiveInput(inputName)}
           placeholder={label === 'Điểm đi' ? 'Nhập địa chỉ xuất phát' : 'Nhập địa chỉ muốn đến'}
           autoComplete="street-address"
-          className="w-full rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-3 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="w-full rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-12 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
+        <button
+          type="button"
+          onClick={onUseCurrentLocation}
+          disabled={locationLoading}
+          className="absolute right-2 top-2 rounded-md p-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"
+          aria-label={`Dùng vị trí của tôi làm ${label.toLowerCase()}`}
+          title="Dùng vị trí của tôi"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-14v5m0 0 3 2m-3-2-3 2" /></svg>
+        </button>
         {activeInput === inputName && suggestions.length > 0 && (
           <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
             {suggestions.map((suggestion) => (
@@ -329,7 +395,7 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
           <div className="space-y-3 rounded-xl border border-gray-200 p-4">
             {addressInput('Điểm đi', startAddress, (value) => updateAddress(value, true), 'bg-blue-600', startPoint, startSuggestions, 'start', (suggestion) => {
               setStartAddress(suggestion.displayName); setStartPoint(suggestion); setStartSuggestions([]); setActiveInput(null);
-            })}
+            }, () => useCurrentLocation(true))}
             <div className="flex justify-center">
               <button type="button" onClick={handleSwap} className="rounded-full border border-gray-200 bg-white p-2 text-gray-600 shadow-sm hover:bg-gray-50" aria-label="Đổi điểm đi và điểm đến" title="Đổi chiều lộ trình">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4 4 4m6 0v12m0 0 4-4m-4 4-4-4" /></svg>
@@ -337,8 +403,10 @@ export default function CheckRouteDrawer({ isOpen, onClose }: CheckRouteDrawerPr
             </div>
             {addressInput('Điểm đến', endAddress, (value) => updateAddress(value, false), 'bg-red-500', endPoint, endSuggestions, 'end', (suggestion) => {
               setEndAddress(suggestion.displayName); setEndPoint(suggestion); setEndSuggestions([]); setActiveInput(null);
-            })}
+            }, () => useCurrentLocation(false))}
           </div>
+
+          {locationError && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{locationError}</div>}
 
           {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
 

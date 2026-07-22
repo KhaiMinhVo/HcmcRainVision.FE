@@ -12,6 +12,7 @@ import { heatLayer } from '@linkurious/leaflet-heat';
 import type { RainDataPoint, CameraInfo } from '../types';
 import type { HeatmapPoint } from '../hooks/useCamerasAndWeather';
 import { HCMC_CENTER, HEATMAP_CONFIG, MAP_CONFIG, RAIN_LEVEL_CONFIG } from '../constants';
+import type { UserLocation } from '../types/location';
 
 interface MapViewProps {
   rainData: RainDataPoint[];
@@ -21,6 +22,10 @@ interface MapViewProps {
   heatmapPoints?: HeatmapPoint[];
   showHeatmap?: boolean;
   panTrigger?: number;
+  userLocation?: UserLocation | null;
+  locationLoading?: boolean;
+  locationError?: string | null;
+  onRequestLocation?: () => void;
 }
 
 /**
@@ -152,11 +157,16 @@ export default function MapView({
   heatmapPoints = [],
   showHeatmap = false,
   panTrigger = 0,
+  userLocation = null,
+  locationLoading = false,
+  locationError = null,
+  onRequestLocation = () => undefined,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const heatLayerRef = useRef<L.Layer | null>(null);
   const camerasRef = useRef(cameras);
+  const userLocationLayerRef = useRef<L.LayerGroup | null>(null);
   
   // Keep latest cameras in ref so we don't trigger panning when cameras update
   useEffect(() => {
@@ -260,9 +270,58 @@ export default function MapView({
     };
   }, [showHeatmap, heatmapPoints]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (userLocationLayerRef.current) {
+      map.removeLayer(userLocationLayerRef.current);
+      userLocationLayerRef.current = null;
+    }
+    if (!userLocation) return;
+
+    const location = L.latLng(userLocation.lat, userLocation.lng);
+    const layer = L.layerGroup([
+      L.circle(location, {
+        radius: userLocation.accuracy,
+        color: '#2563eb',
+        fillColor: '#60a5fa',
+        fillOpacity: 0.12,
+        weight: 1,
+      }),
+      L.circleMarker(location, {
+        radius: 8,
+        color: '#ffffff',
+        fillColor: '#2563eb',
+        fillOpacity: 1,
+        weight: 3,
+      }).bindPopup('<strong>Vị trí của tôi</strong>'),
+    ]).addTo(map);
+    userLocationLayerRef.current = layer;
+    map.setView(location, Math.max(map.getZoom(), 15), { animate: true });
+
+    return () => {
+      if (map.hasLayer(layer)) map.removeLayer(layer);
+      if (userLocationLayerRef.current === layer) userLocationLayerRef.current = null;
+    };
+  }, [userLocation]);
+
   return (
     <div className="w-full h-full relative z-0 bg-gray-100" style={{ minHeight: 300 }}>
       <div ref={containerRef} className="absolute inset-0" />
+      <div className="absolute right-3 top-3 z-[500] flex max-w-64 flex-col items-end gap-2">
+        <button
+          type="button"
+          onClick={onRequestLocation}
+          disabled={locationLoading}
+          className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-md hover:bg-gray-50 disabled:opacity-60"
+          title="Hiển thị vị trí hiện tại"
+        >
+          <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-14v5m0 0 3 2m-3-2-3 2" /></svg>
+          {locationLoading ? 'Đang định vị...' : userLocation ? 'Vị trí của tôi' : 'Tìm vị trí của tôi'}
+        </button>
+        {locationError && <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-700 shadow" role="alert">{locationError}</p>}
+      </div>
     </div>
   );
 }

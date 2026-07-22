@@ -1,7 +1,7 @@
 /**
  * Home Page – cameras and weather from API (GET /api/camera, GET /api/weather/latest)
  */
-import { useState, useMemo } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import MapView from '../components/MapView';
 import TimeSlider from '../components/TimeSlider';
 import Legend from '../components/Legend';
@@ -15,6 +15,7 @@ import { Button } from '../components/ui';
 import { useAuth } from '../contexts/AuthContext';
 import { useCamerasAndWeather } from '../hooks/useCamerasAndWeather';
 import type { RainDataPoint, RainFilter } from '../types';
+import type { UserLocation } from '../types/location';
 import { RAIN_LEVEL_CONFIG } from '../constants';
 
 const SINGLE_TIMESTAMP = 'latest';
@@ -32,6 +33,33 @@ export default function Home() {
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [checkRouteOpen, setCheckRouteOpen] = useState(false);
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  const requestUserLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationError('Trình duyệt này không hỗ trợ định vị.');
+      return;
+    }
+
+    setLocationLoading(true);
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setUserLocation({ lat: coords.latitude, lng: coords.longitude, accuracy: coords.accuracy });
+        setLocationLoading(false);
+      },
+      (geolocationError) => {
+        const message = geolocationError.code === geolocationError.PERMISSION_DENIED
+          ? 'Bạn đã từ chối quyền vị trí. Hãy cho phép Location trong cài đặt trình duyệt.'
+          : 'Không thể xác định vị trí hiện tại. Vui lòng thử lại.';
+        setLocationError(message);
+        setLocationLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+    );
+  }, []);
 
   const filteredCameras = useMemo(() => {
     return cameras.filter((camera) => {
@@ -159,6 +187,10 @@ export default function Home() {
               heatmapPoints={heatmapPoints}
               showHeatmap={showHeatmap}
               panTrigger={panTrigger}
+              userLocation={userLocation}
+              locationLoading={locationLoading}
+              locationError={locationError}
+              onRequestLocation={requestUserLocation}
             />
             <Legend showHeatmap={showHeatmap} onToggleHeatmap={setShowHeatmap} />
           </div>
@@ -179,7 +211,14 @@ export default function Home() {
         onViewOnMap={handleViewOnMap}
       />
 
-      <CheckRouteDrawer isOpen={checkRouteOpen} onClose={() => setCheckRouteOpen(false)} />
+      <CheckRouteDrawer
+        isOpen={checkRouteOpen}
+        onClose={() => setCheckRouteOpen(false)}
+        userLocation={userLocation}
+        locationLoading={locationLoading}
+        locationError={locationError}
+        onRequestLocation={requestUserLocation}
+      />
 
       <button
         onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
