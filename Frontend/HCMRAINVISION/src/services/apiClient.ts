@@ -146,8 +146,8 @@ export async function apiGet<T>(
   throw lastErr ?? { status: 0, message: 'Unknown error', body: undefined };
 }
 
-export function apiPost<T>(path: string, body: unknown): Promise<T> {
-  return apiRequest<T>(path, { method: 'POST', body: JSON.stringify(body) });
+export function apiPost<T>(path: string, body: unknown, options?: { timeout?: number }): Promise<T> {
+  return apiRequest<T>(path, { method: 'POST', body: JSON.stringify(body), timeout: options?.timeout });
 }
 
 export function apiPut<T>(path: string, body: unknown): Promise<T> {
